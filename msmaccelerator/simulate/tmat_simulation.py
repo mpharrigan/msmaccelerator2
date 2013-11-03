@@ -23,22 +23,18 @@ from ..core.device import Device
 ##############################################################################
 
 
-class OpenMMSimulator(Device):
-    name = 'OpenMM'
-    path = 'msmaccelerator.simulate.simulation.OpenMMSimulator'
-    short_description = 'Run a single round of dynamics with OpenMM'
+class TMatSimulator(Device):
+    name = 'TMat'
+    path = 'msmaccelerator.simulate.simulation.TMatSimulator'
+    short_description = 'Sample a single round from a transition matrix'
     long_description = '''This device will connect to the msmaccelerator server,
         request the initial conditions with which to start a simulation, and
-        propagate dynamics'''
+        simulate the propogation of dynamics by performing kinetic monte
+        carlo from a pre-existing transition matrix.'''
 
     # configurables.
-    system_xml = Unicode('system.xml', config=True, help='''
-        Path to the XML file containing the OpenMM system to propagate''')
-    system = Instance('simtk.openmm.openmm.System')
-
-    integrator_xml = Unicode('integrator.xml', config=True, help='''
-        Path to the XML file containing the OpenMM Integrator to use''')
-    integrator = Instance('simtk.openmm.openmm.Integrator')
+    tmat_fn = Unicode('tmat.pickl', config=True, help='''
+        Path to the transition matrix from which to sample.''')
 
     number_of_steps = CInt(10000, config=True, help='''
         Number of steps of dynamics to do''')
@@ -46,50 +42,20 @@ class OpenMMSimulator(Device):
     report_interval = CInt(1000, config=True, help='''
         Interval at which to save positions to a disk, in units of steps''')
 
-    minimize = Bool(True, config=True, help='''Do local energy minimization on
-        the configuration that's passed to me, before running dynamics''')
-
-    random_initial_velocities = Bool(True, config=True, help='''Choose
-        random initial velocities from the Maxwell-Boltzmann distribution''')
-
-    platform = Enum(['Reference', 'CUDA', 'OpenCL'], default_value='CUDA',
-        config=True, help='''The OpenMM platform on which to run the simulation''')
-    device_index = CInt(0, config=True, help='''OpenMM device index for CUDA or
-        OpenCL platforms. This is used to select which GPU will be used on a
-        multi-gpu system. This option is ignored on reference platform''')
+    
 
 
     # expose these as command line flags on --help
     # other settings can still be specified on the command line, its just
     # less convenient
-    aliases = dict(system_xml='OpenMMSimulator.system_xml',
-                  integrator_xml='OpenMMSimulator.integrator_xml',
-                  number_of_steps='OpenMMSimulator.number_of_steps',
-                  report_interval='OpenMMSimulator.report_interval',
-                  zmq_port='Device.zmq_port',
-                  zmq_url='Device.zmq_url',
-                  platform='OpenMMSimulator.platform',
-                  device_index='OpenMMSimulator.device_index')
+    aliases = dict(tmat_fn='TMatSimulator.tmat_fn',
+                  number_of_steps='TMatSimulator.number_of_steps',
+                  report_interval='TMatSimulator.report_interval')
 
 
     def start(self):
-        # load up the system and integrator files
-        with open(self.system_xml) as f:
-            self.system = XmlSerializer.deserialize(f.read())
-            # reset the random number seed for any random
-            # forces (andersen thermostat, montecarlo barostat)
-            for i in range(self.system.getNumForces()):
-                force = self.system.getForce(i)
-                if hasattr(force, 'setRandomNumberSeed'):
-                    force.setRandomNumberSeed(random_seed())
-        with open(self.integrator_xml) as f:
-            self.integrator = XmlSerializer.deserialize(f.read())
-
-            # reset the random number seed for a stochastic integrator
-            if hasattr(self.integrator, 'setRandomNumberSeed'):
-                self.integrator.setRandomNumberSeed(random_seed())
-
-        super(OpenMMSimulator, self).start()
+        # TODO: Load transition matrix
+        super(TMatSimulator, self).start()
 
     def on_startup_message(self, msg):
         """This method is called when the device receives its startup message
@@ -103,7 +69,7 @@ class OpenMMSimulator(Device):
         """Main method that is "executed" by the receipt of the
         msg_type == 'simulate' message from the server.
 
-        We run some OpenMM dynamics, and then send back the results.
+        We run some KMC dynamics, and then send back the results.
         """
         self.log.info('Setting up simulation...')
         state, topology = self.deserialize_input(content)
