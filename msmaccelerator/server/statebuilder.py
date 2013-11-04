@@ -75,6 +75,22 @@ class OpenMMStateBuilder(StateBuilder):
                                       getForces=True, getEnergy=True,
                                       getParameters=True, enforcePeriodicBox=periodic)
         return XmlSerializer.serialize(state)
+    
+class TMatStateBuilder(StateBuilder):
+    """Build an TMat "state" that can be sent to a device to simulate.
+    """
+
+    def build(self, trajectory):
+        """Create a serialized XML state from the first frame in a trajectory
+
+        Parameteters
+        ------------
+        trajectory : mdtraj.trajectory.Trajectory
+            The trajectory to take the frame from. We'll use both the the
+            positions and the box vectors (if you're using periodic boundary
+            conditions)
+        """
+        #TODO Implement?
 
 
 class AmberStateBuilder(StateBuilder):

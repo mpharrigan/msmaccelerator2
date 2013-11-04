@@ -10,7 +10,8 @@ ioloop.install()  # this needs to come at the beginning
 
 # local
 from .sampling import CountsSampler
-from .statebuilder import OpenMMStateBuilder, AmberStateBuilder
+from .statebuilder import (OpenMMStateBuilder, AmberStateBuilder,
+                           TMatStateBuilder)
 from .baseserver import BaseServer
 from ..core.database import session, Model, Trajectory, StartingState
 
@@ -32,7 +33,8 @@ class AdaptiveServer(BaseServer):
     """
 
     # configurables
-    md_engine = Enum(['OpenMM', 'AMBER'], config=True, default_value='OpenMM',
+    md_engine = Enum(['OpenMM', 'AMBER', 'TMat'], config=True,
+        default_value='OpenMM',
         help='''Which MD engine do you want to configure the server to
         iterface with? If 'OpenMM', the server will emit xml-serialized
         states to simulators that connect. If 'AMBER', the server will
@@ -94,6 +96,8 @@ class AdaptiveServer(BaseServer):
             self.sampler.statebuilder = OpenMMStateBuilder(self.system_xml)
         elif self.md_engine == 'AMBER':
             self.sampler.statebuilder = AmberStateBuilder()
+        elif self.md_engine == 'TMat':
+            self.sampler.statebuilder = TMatStateBuilder()
         else:
             raise ValueError('md_engine must be one of "OpenMM" or "AMBER": %s' % self.md_engine)
 
@@ -126,6 +130,9 @@ class AdaptiveServer(BaseServer):
         starting conditions
         """
         return self._register_Simulator(header.sender_id, '.xml', '.h5')
+    
+    def register_TMatSimulator(self, header, content):
+        return self._register_Simulator(header.sender_it, '.xml', '.h5')
 
     def _register_Simulator(self, sender_id, state_format, traj_format):
         assert state_format in ['.xml', '.inpcrd'], 'invalid state format'
