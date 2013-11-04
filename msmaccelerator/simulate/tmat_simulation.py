@@ -33,8 +33,11 @@ class TMatSimulator(Device):
         carlo from a pre-existing transition matrix.'''
 
     # configurables.
-    tmat_fn = Unicode('tmat.pickl', config=True, help='''
+    tmat_fn = Unicode('tProb.mtx', config=True, help='''
         Path to the transition matrix from which to sample.''')
+    
+    gens_fn = Unicode('Gens.lh5', config=True, help='''
+        Path to the generators trajectory.''')
 
     number_of_steps = CInt(10000, config=True, help='''
         Number of steps of dynamics to do''')
