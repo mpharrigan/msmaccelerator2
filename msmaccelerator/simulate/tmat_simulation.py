@@ -14,6 +14,8 @@ import simtk.openmm as mm
 from simtk.openmm import XmlSerializer, Platform
 from simtk.openmm.app import (Simulation, PDBFile)
 
+import scipy.io
+
 # local
 from .reporters import CallbackReporter
 from ..core.device import Device
@@ -55,9 +57,11 @@ class TMatSimulator(Device):
                   number_of_steps='TMatSimulator.number_of_steps',
                   report_interval='TMatSimulator.report_interval')
 
+    t_matrix = None
 
     def start(self):
-        # TODO: Load transition matrix
+        self.t_matrix = scipy.io.mmread(self.tmat_fn)
+        self.log.info('Shape! {}'.format(self.t_matrix.shape))
         super(TMatSimulator, self).start()
 
     def on_startup_message(self, msg):
@@ -75,55 +79,56 @@ class TMatSimulator(Device):
         We run some KMC dynamics, and then send back the results.
         """
         self.log.info('Setting up simulation...')
-        state, topology = self.deserialize_input(content)
+        
+#         state, topology = self.deserialize_input(content)
         starting_state_path = content.starting_state.path
-
-        # set the GPU platform
-        platform = Platform.getPlatformByName(str(self.platform))
-        if self.platform == 'CUDA':
-            properties = {'CudaPrecision': 'mixed',
-                          'CudaDeviceIndex': str(self.device_index)
-                         }
-        elif self.platform == 'OpenCL':
-            properties = {'OpenCLPrecision': 'mixed',
-                          'OpenCLDeviceIndex': str(self.device_index)
-                         }
-        else:
-            properties = None
-
-
-        simulation = Simulation(topology, self.system, self.integrator,
-                                platform, properties)
-        # do the setup
-        self.set_state(state, simulation)
-        self.sanity_check(simulation)
-        if self.minimize:
-            self.log.info('minimizing...')
-            simulation.minimizeEnergy()
-
-        if self.random_initial_velocities:
-            try:
-                temp = simulation.integrator.getTemperature()
-                simulation.context.setVelocitiesToTemperature(temp)
-            except AttributeError:
-                print "I don't know what temperature to use!!"
-                # TODO: look through the system's forces to find an andersen
-                # thermostate?
-                raise
-            pass
+# 
+#         # set the GPU platform
+#         platform = Platform.getPlatformByName(str(self.platform))
+#         if self.platform == 'CUDA':
+#             properties = {'CudaPrecision': 'mixed',
+#                           'CudaDeviceIndex': str(self.device_index)
+#                          }
+#         elif self.platform == 'OpenCL':
+#             properties = {'OpenCLPrecision': 'mixed',
+#                           'OpenCLDeviceIndex': str(self.device_index)
+#                          }
+#         else:
+#             properties = None
+# 
+# 
+#         simulation = Simulation(topology, self.system, self.integrator,
+#                                 platform, properties)
+#         # do the setup
+#         self.set_state(state, simulation)
+#         self.sanity_check(simulation)
+#         if self.minimize:
+#             self.log.info('minimizing...')
+#             simulation.minimizeEnergy()
+# 
+#         if self.random_initial_velocities:
+#             try:
+#                 temp = simulation.integrator.getTemperature()
+#                 simulation.context.setVelocitiesToTemperature(temp)
+#             except AttributeError:
+#                 print "I don't know what temperature to use!!"
+#                 # TODO: look through the system's forces to find an andersen
+#                 # thermostate?
+#                 raise
+#             pass
 
         assert content.output.protocol == 'localfs', "I'm currently only equiped for localfs output"
-        self.log.info('adding reporters...')
-        self.add_reporters(simulation, content.output.path)
-
-        # run dynamics!
-        self.log.info('Starting dynamics')
-        simulation.step(self.number_of_steps)
-
-        for reporter in simulation.reporters:
-            # explicitly delete the reporters so that any open file handles
-            # are closed.
-            del reporter
+#         self.log.info('adding reporters...')
+#         self.add_reporters(simulation, content.output.path)
+# 
+#         # run dynamics!
+#         self.log.info('Starting dynamics')
+#         simulation.step(self.number_of_steps)
+# 
+#         for reporter in simulation.reporters:
+#             # explicitly delete the reporters so that any open file handles
+#             # are closed.
+#             del reporter
 
         # tell the master that I'm done
         self.send_recv(msg_type='simulation_done', content={
