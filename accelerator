@@ -21,5 +21,6 @@ def main():
     app.start()
 
 if __name__ == '__main__':
+    print "Version 3"
     main()
     

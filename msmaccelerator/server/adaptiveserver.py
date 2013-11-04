@@ -132,7 +132,7 @@ class AdaptiveServer(BaseServer):
         return self._register_Simulator(header.sender_id, '.xml', '.h5')
     
     def register_TMatSimulator(self, header, content):
-        return self._register_Simulator(header.sender_it, '.xml', '.h5')
+        return self._register_Simulator(header.sender_id, '.xml', '.h5')
 
     def _register_Simulator(self, sender_id, state_format, traj_format):
         assert state_format in ['.xml', '.inpcrd'], 'invalid state format'

@@ -13,6 +13,7 @@ from mdtraj.reporters import HDF5Reporter
 import simtk.openmm as mm
 from simtk.openmm import XmlSerializer, Platform
 from simtk.openmm.app import (Simulation, PDBFile)
+from ..core.traitlets import FilePath
 
 import scipy.io
 
@@ -27,7 +28,7 @@ from ..core.device import Device
 
 class TMatSimulator(Device):
     name = 'TMat'
-    path = 'msmaccelerator.simulate.simulation.TMatSimulator'
+    path = 'msmaccelerator.simulate.tmat_simulation.TMatSimulator'
     short_description = 'Sample a single round from a transition matrix'
     long_description = '''This device will connect to the msmaccelerator server,
         request the initial conditions with which to start a simulation, and
@@ -35,10 +36,10 @@ class TMatSimulator(Device):
         carlo from a pre-existing transition matrix.'''
 
     # configurables.
-    tmat_fn = Unicode('tProb.mtx', config=True, help='''
+    tmat_fn = FilePath('tProb.mtx', config=True, help='''
         Path to the transition matrix from which to sample.''')
     
-    gens_fn = Unicode('Gens.lh5', config=True, help='''
+    gens_fn = FilePath('Gens.lh5', config=True, help='''
         Path to the generators trajectory.''')
 
     number_of_steps = CInt(10000, config=True, help='''
@@ -78,7 +79,7 @@ class TMatSimulator(Device):
 
         We run some KMC dynamics, and then send back the results.
         """
-        self.log.info('Setting up simulation...')
+        self.log.info('Setting up TMat simulation...')
         
 #         state, topology = self.deserialize_input(content)
         starting_state_path = content.starting_state.path
