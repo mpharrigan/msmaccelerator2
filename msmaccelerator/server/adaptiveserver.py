@@ -17,6 +17,7 @@ from ..core.database import session, Model, Trajectory, StartingState
 
 # ipython
 from IPython.utils.traitlets import Unicode, Instance, Enum
+from ..core.traitlets import FilePath
 ##############################################################################
 # Classes
 ##############################################################################
@@ -54,6 +55,8 @@ class AdaptiveServer(BaseServer):
         determine the system's topology. This is sent directly to the
         Simulator. Honestly, I'm not sure exactly why we need it. TODO:
         ask Peter about this.''')
+    gens_fn = FilePath('Gens.h5', config=True, help='''
+        Path to the generators trajectory.''')
 
     sampler = Instance('msmaccelerator.server.sampling.CentroidSampler')
     # this class attributes lets us configure the sampler on the command
@@ -97,7 +100,7 @@ class AdaptiveServer(BaseServer):
         elif self.md_engine == 'AMBER':
             self.sampler.statebuilder = AmberStateBuilder()
         elif self.md_engine == 'TMat':
-            self.sampler.statebuilder = TMatStateBuilder()
+            self.sampler.statebuilder = TMatStateBuilder(self.gens_fn)
         else:
             raise ValueError('md_engine must be one of "OpenMM" or "AMBER": %s' % self.md_engine)
 
@@ -118,7 +121,7 @@ class AdaptiveServer(BaseServer):
     ########################################################################
     # BEGIN HANDLERS FOR INCOMMING MESSAGES
     ########################################################################
-    
+
     def register_AmberSimulator(self, header, content):
         """Called at the when an OpenMMSimulator device boots up. We give it
         starting conditions
@@ -130,14 +133,16 @@ class AdaptiveServer(BaseServer):
         starting conditions
         """
         return self._register_Simulator(header.sender_id, '.xml', '.h5')
-    
+
     def register_TMatSimulator(self, header, content):
+        """Just save the state as the trajectory frame."""
         return self._register_Simulator(header.sender_id, '.xml', '.h5')
 
     def _register_Simulator(self, sender_id, state_format, traj_format):
         assert state_format in ['.xml', '.inpcrd'], 'invalid state format'
         starting_state_fn = os.path.join(self.starting_states_outdir,
-                                         '%s.%s' % (sender_id, state_format))
+                                         '%s%s' % (sender_id, state_format))
+
         with open(starting_state_fn, 'w') as f:
             state = self.sampler.get_state()
             f.write(state)
@@ -186,9 +191,9 @@ class AdaptiveServer(BaseServer):
 
         # save every model in the database
         session.add(Model(
-            time = datetime.fromtimestamp(header.time),
-            protocol = content['output']['protocol'],
-            path = content['output']['path']
+            time=datetime.fromtimestamp(header.time),
+            protocol=content['output']['protocol'],
+            path=content['output']['path']
         ))
         session.commit()
 
@@ -204,13 +209,13 @@ class AdaptiveServer(BaseServer):
             self.log.critical('Output file returned by simulation does not exist. %s' % content['output']['path'])
 
         session.add(Trajectory(
-            time = datetime.fromtimestamp(header.time),
-            protocol = content['output']['protocol'],
-            path = content['output']['path'],
-            starting_state = [StartingState(
-                    time = datetime.fromtimestamp(header.time),
-                    protocol = content['starting_state']['protocol'],
-                    path = content['starting_state']['path']                    
+            time=datetime.fromtimestamp(header.time),
+            protocol=content['output']['protocol'],
+            path=content['output']['path'],
+            starting_state=[StartingState(
+                    time=datetime.fromtimestamp(header.time),
+                    protocol=content['starting_state']['protocol'],
+                    path=content['starting_state']['path']
             )]
         ))
         session.commit()
