@@ -8,7 +8,7 @@ import numbers
 
 #3rd party
 import tables
-import msmbuilder.io
+import mdtraj.io
 import scipy.sparse
 import numpy as np
 from IPython.utils.traitlets import HasTraits, Instance
@@ -59,7 +59,7 @@ class MarkovStateModel(HasTraits):
                 kwargs[name] = np.array(attr)
 
 
-        msmbuilder.io.saveh(filename, **kwargs)
+        mdtraj.io.saveh(filename, **kwargs)
 
     def close(self):
         if self.handle is not None:
